@@ -1,6 +1,7 @@
 package ru.urfu.githubrepositories.ui.repositories
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,28 +11,47 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import ru.urfu.githubrepositories.data.GitHubRepository
+import ru.urfu.githubrepositories.domain.model.GitHubRepository
+import ru.urfu.githubrepositories.presentation.repositories.RepositoryDetailsUiState
 
 @Composable
 fun RepositoryDetailsScreen(
-    repository: GitHubRepository?,
+    state: RepositoryDetailsUiState,
     onBackClick: () -> Unit,
+    onRetryClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    if (repository == null) {
-        RepositoryNotFound(
+    when (state) {
+        RepositoryDetailsUiState.Loading -> LoadingContent(modifier = modifier)
+        is RepositoryDetailsUiState.Error -> DetailsErrorContent(
+            message = state.message,
+            onBackClick = onBackClick,
+            onRetryClick = onRetryClick,
+            modifier = modifier
+        )
+
+        is RepositoryDetailsUiState.Success -> RepositoryDetailsContent(
+            repository = state.repository,
             onBackClick = onBackClick,
             modifier = modifier
         )
-        return
     }
+}
 
+@Composable
+private fun RepositoryDetailsContent(
+    repository: GitHubRepository,
+    onBackClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -101,23 +121,46 @@ fun RepositoryDetailsScreen(
 }
 
 @Composable
-private fun RepositoryNotFound(
+private fun LoadingContent(
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        CircularProgressIndicator()
+    }
+}
+
+@Composable
+private fun DetailsErrorContent(
+    message: String,
     onBackClick: () -> Unit,
+    onRetryClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Button(onClick = onBackClick) {
-            Text(text = "Назад")
-        }
         Text(
-            text = "Репозиторий не найден",
-            style = MaterialTheme.typography.headlineSmall
+            text = message,
+            style = MaterialTheme.typography.bodyLarge
         )
+        Row(
+            modifier = Modifier.padding(top = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Button(onClick = onBackClick) {
+                Text(text = "Назад")
+            }
+            Button(onClick = onRetryClick) {
+                Text(text = "Повторить")
+            }
+        }
     }
 }
 
