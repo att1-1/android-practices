@@ -28,8 +28,10 @@ import ru.urfu.githubrepositories.presentation.repositories.RepositoriesUiState
 @Composable
 fun RepositoriesScreen(
     state: RepositoriesUiState,
+    hasActiveFilters: Boolean,
     onRepositoryClick: (GitHubRepository) -> Unit,
     onRetryClick: () -> Unit,
+    onFiltersClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     when (state) {
@@ -37,12 +39,16 @@ fun RepositoriesScreen(
         is RepositoriesUiState.Error -> ErrorContent(
             message = state.message,
             onRetryClick = onRetryClick,
+            onFiltersClick = onFiltersClick,
+            hasActiveFilters = hasActiveFilters,
             modifier = modifier
         )
 
         is RepositoriesUiState.Success -> RepositoriesList(
             repositories = state.repositories,
+            hasActiveFilters = hasActiveFilters,
             onRepositoryClick = onRepositoryClick,
+            onFiltersClick = onFiltersClick,
             modifier = modifier
         )
     }
@@ -51,7 +57,9 @@ fun RepositoriesScreen(
 @Composable
 private fun RepositoriesList(
     repositories: List<GitHubRepository>,
+    hasActiveFilters: Boolean,
     onRepositoryClick: (GitHubRepository) -> Unit,
+    onFiltersClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -60,9 +68,9 @@ private fun RepositoriesList(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            Text(
-                text = "Репозитории",
-                style = MaterialTheme.typography.headlineMedium
+            RepositoriesHeader(
+                hasActiveFilters = hasActiveFilters,
+                onFiltersClick = onFiltersClick
             )
         }
 
@@ -83,6 +91,27 @@ private fun RepositoriesList(
                 repository = repository,
                 onClick = { onRepositoryClick(repository) }
             )
+        }
+    }
+}
+
+@Composable
+private fun RepositoriesHeader(
+    hasActiveFilters: Boolean,
+    onFiltersClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "Репозитории",
+            style = MaterialTheme.typography.headlineMedium
+        )
+        Button(onClick = onFiltersClick) {
+            Text(text = if (hasActiveFilters) "Фильтры •" else "Фильтры")
         }
     }
 }
@@ -151,6 +180,8 @@ private fun LoadingContent(
 private fun ErrorContent(
     message: String,
     onRetryClick: () -> Unit,
+    onFiltersClick: () -> Unit,
+    hasActiveFilters: Boolean,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -164,11 +195,16 @@ private fun ErrorContent(
             text = message,
             style = MaterialTheme.typography.bodyLarge
         )
-        Button(
-            onClick = onRetryClick,
-            modifier = Modifier.padding(top = 16.dp)
+        Row(
+            modifier = Modifier.padding(top = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(text = "Повторить")
+            Button(onClick = onRetryClick) {
+                Text(text = "Повторить")
+            }
+            Button(onClick = onFiltersClick) {
+                Text(text = if (hasActiveFilters) "Фильтры •" else "Фильтры")
+            }
         }
     }
 }

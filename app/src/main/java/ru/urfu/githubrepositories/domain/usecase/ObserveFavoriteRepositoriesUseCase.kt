@@ -1,13 +1,13 @@
 package ru.urfu.githubrepositories.domain.usecase
 
+import kotlinx.coroutines.flow.Flow
 import ru.urfu.githubrepositories.domain.model.GitHubRepository
-import ru.urfu.githubrepositories.domain.model.RepositoryFilters
 import ru.urfu.githubrepositories.domain.repository.GitHubRepositoriesRepository
 
-class SearchRepositoriesUseCase(
+class ObserveFavoriteRepositoriesUseCase(
     private val repository: GitHubRepositoriesRepository
 ) {
-    suspend operator fun invoke(filters: RepositoryFilters): List<GitHubRepository> {
-        return repository.searchRepositories(filters.toGitHubQuery())
+    operator fun invoke(): Flow<List<GitHubRepository>> {
+        return repository.observeFavoriteRepositories()
     }
 }
