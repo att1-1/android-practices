@@ -1,5 +1,6 @@
 package ru.urfu.githubrepositories.ui
 
+import android.net.Uri
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.NavigationBar
@@ -7,6 +8,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -25,11 +27,12 @@ private object Routes {
     const val Repositories = "repositories"
     const val Saved = "saved"
     const val Profile = "profile"
-    const val RepositoryId = "repositoryId"
-    const val RepositoryDetailsRoute = "repositoryDetails/{repositoryId}"
+    const val Owner = "owner"
+    const val Repo = "repo"
+    const val RepositoryDetailsRoute = "repositoryDetails/{owner}/{repo}"
 
-    fun repositoryDetails(repositoryId: Long): String {
-        return "repositoryDetails/$repositoryId"
+    fun repositoryDetails(owner: String, repo: String): String {
+        return "repositoryDetails/${Uri.encode(owner)}/${Uri.encode(repo)}"
     }
 }
 
@@ -48,7 +51,9 @@ private val bottomTabs = listOf(
 @Composable
 fun GithubRepositoriesApp() {
     val navController = rememberNavController()
-    val repositoriesViewModel: RepositoriesViewModel = viewModel()
+    val repositoriesViewModel: RepositoriesViewModel = viewModel(
+        factory = RepositoriesViewModel.Factory
+    )
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     val selectedTabRoute = when (currentRoute) {
@@ -86,10 +91,16 @@ fun GithubRepositoriesApp() {
         ) {
             composable(Routes.Repositories) {
                 RepositoriesScreen(
-                    repositories = repositoriesViewModel.repositories,
+                    state = repositoriesViewModel.repositoriesState,
                     onRepositoryClick = { repository ->
-                        navController.navigate(Routes.repositoryDetails(repository.id))
-                    }
+                        navController.navigate(
+                            Routes.repositoryDetails(
+                                owner = repository.owner,
+                                repo = repository.name
+                            )
+                        )
+                    },
+                    onRetryClick = { repositoriesViewModel.loadRepositories() }
                 )
             }
             composable(Routes.Saved) {
@@ -101,16 +112,29 @@ fun GithubRepositoriesApp() {
             composable(
                 route = Routes.RepositoryDetailsRoute,
                 arguments = listOf(
-                    navArgument(Routes.RepositoryId) {
-                        type = NavType.LongType
+                    navArgument(Routes.Owner) {
+                        type = NavType.StringType
+                    },
+                    navArgument(Routes.Repo) {
+                        type = NavType.StringType
                     }
                 )
             ) { entry ->
-                val repositoryId = entry.arguments?.getLong(Routes.RepositoryId) ?: -1L
+                val owner = entry.arguments?.getString(Routes.Owner).orEmpty()
+                val repo = entry.arguments?.getString(Routes.Repo).orEmpty()
+
+                LaunchedEffect(owner, repo) {
+                    if (owner.isNotBlank() && repo.isNotBlank()) {
+                        repositoriesViewModel.loadRepositoryDetails(owner, repo)
+                    }
+                }
 
                 RepositoryDetailsScreen(
-                    repository = repositoriesViewModel.getRepositoryById(repositoryId),
-                    onBackClick = { navController.popBackStack() }
+                    state = repositoriesViewModel.repositoryDetailsState,
+                    onBackClick = { navController.popBackStack() },
+                    onRetryClick = {
+                        repositoriesViewModel.loadRepositoryDetails(owner, repo)
+                    }
                 )
             }
         }
