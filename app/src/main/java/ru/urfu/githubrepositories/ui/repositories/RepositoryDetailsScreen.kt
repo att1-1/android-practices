@@ -27,6 +27,7 @@ fun RepositoryDetailsScreen(
     state: RepositoryDetailsUiState,
     onBackClick: () -> Unit,
     onRetryClick: () -> Unit,
+    onFavoriteClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     when (state) {
@@ -40,7 +41,9 @@ fun RepositoryDetailsScreen(
 
         is RepositoryDetailsUiState.Success -> RepositoryDetailsContent(
             repository = state.repository,
+            isFavorite = state.isFavorite,
             onBackClick = onBackClick,
+            onFavoriteClick = onFavoriteClick,
             modifier = modifier
         )
     }
@@ -49,7 +52,9 @@ fun RepositoryDetailsScreen(
 @Composable
 private fun RepositoryDetailsContent(
     repository: GitHubRepository,
+    isFavorite: Boolean,
     onBackClick: () -> Unit,
+    onFavoriteClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -59,8 +64,19 @@ private fun RepositoryDetailsContent(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Button(onClick = onBackClick) {
-            Text(text = "Назад")
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Button(onClick = onBackClick) {
+                Text(text = "Назад")
+            }
+            Button(onClick = onFavoriteClick) {
+                Text(
+                    text = if (isFavorite) {
+                        "Удалить из избранного"
+                    } else {
+                        "Добавить в избранное"
+                    }
+                )
+            }
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
