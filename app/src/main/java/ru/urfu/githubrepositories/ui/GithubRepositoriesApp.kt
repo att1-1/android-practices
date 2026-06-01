@@ -11,7 +11,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -19,14 +18,20 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import org.koin.androidx.compose.koinViewModel
+import ru.urfu.githubrepositories.ui.filters.FiltersScreen
 import ru.urfu.githubrepositories.ui.repositories.RepositoriesScreen
 import ru.urfu.githubrepositories.ui.repositories.RepositoryDetailsScreen
+import ru.urfu.githubrepositories.ui.saved.SavedRepositoriesScreen
+import ru.urfu.githubrepositories.viewmodel.FiltersViewModel
 import ru.urfu.githubrepositories.viewmodel.RepositoriesViewModel
+import ru.urfu.githubrepositories.viewmodel.SavedRepositoriesViewModel
 
 private object Routes {
     const val Repositories = "repositories"
     const val Saved = "saved"
     const val Profile = "profile"
+    const val Filters = "filters"
     const val Owner = "owner"
     const val Repo = "repo"
     const val RepositoryDetailsRoute = "repositoryDetails/{owner}/{repo}"
@@ -51,13 +56,13 @@ private val bottomTabs = listOf(
 @Composable
 fun GithubRepositoriesApp() {
     val navController = rememberNavController()
-    val repositoriesViewModel: RepositoriesViewModel = viewModel(
-        factory = RepositoriesViewModel.Factory
-    )
+    val repositoriesViewModel: RepositoriesViewModel = koinViewModel()
+    val savedRepositoriesViewModel: SavedRepositoriesViewModel = koinViewModel()
+    val filtersViewModel: FiltersViewModel = koinViewModel()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     val selectedTabRoute = when (currentRoute) {
-        Routes.RepositoryDetailsRoute -> Routes.Repositories
+        Routes.RepositoryDetailsRoute, Routes.Filters -> Routes.Repositories
         else -> currentRoute
     }
 
@@ -92,6 +97,7 @@ fun GithubRepositoriesApp() {
             composable(Routes.Repositories) {
                 RepositoriesScreen(
                     state = repositoriesViewModel.repositoriesState,
+                    hasActiveFilters = repositoriesViewModel.hasActiveFilters,
                     onRepositoryClick = { repository ->
                         navController.navigate(
                             Routes.repositoryDetails(
@@ -100,14 +106,33 @@ fun GithubRepositoriesApp() {
                             )
                         )
                     },
-                    onRetryClick = { repositoriesViewModel.loadRepositories() }
+                    onRetryClick = { repositoriesViewModel.loadRepositories() },
+                    onFiltersClick = { navController.navigate(Routes.Filters) }
                 )
             }
             composable(Routes.Saved) {
-                PlaceholderScreen(title = "Сохраненные")
+                SavedRepositoriesScreen(
+                    state = savedRepositoriesViewModel.savedRepositoriesState
+                )
             }
             composable(Routes.Profile) {
                 PlaceholderScreen(title = "Профиль")
+            }
+            composable(Routes.Filters) {
+                FiltersScreen(
+                    queryText = filtersViewModel.queryText,
+                    language = filtersViewModel.language,
+                    minStars = filtersViewModel.minStars,
+                    onQueryTextChange = filtersViewModel::onQueryTextChange,
+                    onLanguageChange = filtersViewModel::onLanguageChange,
+                    onMinStarsChange = filtersViewModel::onMinStarsChange,
+                    onDoneClick = {
+                        filtersViewModel.saveFilters {
+                            navController.popBackStack()
+                        }
+                    },
+                    onBackClick = { navController.popBackStack() }
+                )
             }
             composable(
                 route = Routes.RepositoryDetailsRoute,
@@ -134,7 +159,8 @@ fun GithubRepositoriesApp() {
                     onBackClick = { navController.popBackStack() },
                     onRetryClick = {
                         repositoriesViewModel.loadRepositoryDetails(owner, repo)
-                    }
+                    },
+                    onFavoriteClick = repositoriesViewModel::toggleFavorite
                 )
             }
         }

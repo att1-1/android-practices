@@ -6,7 +6,8 @@ sealed interface RepositoryDetailsUiState {
     data object Loading : RepositoryDetailsUiState
 
     data class Success(
-        val repository: GitHubRepository
+        val repository: GitHubRepository,
+        val isFavorite: Boolean
     ) : RepositoryDetailsUiState
 
     data class Error(
