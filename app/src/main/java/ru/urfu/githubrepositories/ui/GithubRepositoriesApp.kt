@@ -23,6 +23,9 @@ import ru.urfu.githubrepositories.ui.filters.FiltersScreen
 import ru.urfu.githubrepositories.ui.repositories.RepositoriesScreen
 import ru.urfu.githubrepositories.ui.repositories.RepositoryDetailsScreen
 import ru.urfu.githubrepositories.ui.saved.SavedRepositoriesScreen
+import ru.urfu.githubrepositories.ui.profile.ProfileScreen
+import ru.urfu.githubrepositories.ui.profile.ProfileEditScreen
+import ru.urfu.githubrepositories.viewmodel.ProfileViewModel
 import ru.urfu.githubrepositories.viewmodel.FiltersViewModel
 import ru.urfu.githubrepositories.viewmodel.RepositoriesViewModel
 import ru.urfu.githubrepositories.viewmodel.SavedRepositoriesViewModel
@@ -31,6 +34,7 @@ private object Routes {
     const val Repositories = "repositories"
     const val Saved = "saved"
     const val Profile = "profile"
+    const val ProfileEdit = "profile/edit"
     const val Filters = "filters"
     const val Owner = "owner"
     const val Repo = "repo"
@@ -59,10 +63,12 @@ fun GithubRepositoriesApp() {
     val repositoriesViewModel: RepositoriesViewModel = koinViewModel()
     val savedRepositoriesViewModel: SavedRepositoriesViewModel = koinViewModel()
     val filtersViewModel: FiltersViewModel = koinViewModel()
+    val profileViewModel: ProfileViewModel = koinViewModel()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     val selectedTabRoute = when (currentRoute) {
         Routes.RepositoryDetailsRoute, Routes.Filters -> Routes.Repositories
+        Routes.ProfileEdit -> Routes.Profile
         else -> currentRoute
     }
 
@@ -116,7 +122,17 @@ fun GithubRepositoriesApp() {
                 )
             }
             composable(Routes.Profile) {
-                PlaceholderScreen(title = "Профиль")
+                ProfileScreen(
+                    viewModel = profileViewModel,
+                    onEdit = { navController.navigate(Routes.ProfileEdit) }
+                )
+            }
+            composable(Routes.ProfileEdit) {
+                ProfileEditScreen(
+                    viewModel = profileViewModel,
+                    onBack = { navController.popBackStack() },
+                    onSaved = { navController.popBackStack() }
+                )
             }
             composable(Routes.Filters) {
                 FiltersScreen(
