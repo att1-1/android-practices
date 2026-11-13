@@ -8,6 +8,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 import ru.urfu.githubrepositories.domain.model.DownloadedResume
 import ru.urfu.githubrepositories.domain.model.UserProfile
 import ru.urfu.githubrepositories.domain.usecase.DownloadResumeUseCase
@@ -122,6 +123,8 @@ class ProfileViewModel(
                 val document = downloadResume(profile.resumeUrl)
                 errorMessage = null
                 onDownloaded(document)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 errorMessage = "Не удалось открыть резюме: ${e.message}"
             } finally {

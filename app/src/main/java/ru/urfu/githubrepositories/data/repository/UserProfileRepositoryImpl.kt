@@ -1,14 +1,17 @@
 package ru.urfu.githubrepositories.data.repository
 
+import android.app.DownloadManager
+import android.os.Environment
 import android.content.Context
 import android.net.Uri
 import androidx.core.content.FileProvider
 import java.io.File
 import java.io.IOException
-import java.net.HttpURLConnection
-import java.net.URL
+import java.net.URI
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.first
 import ru.urfu.githubrepositories.data.local.profile.userProfileDataStore
@@ -79,55 +82,79 @@ class UserProfileRepositoryImpl(private val context: Context) : UserProfileRepos
     }
 
     override suspend fun downloadResume(url: String): DownloadedResume = withContext(Dispatchers.IO) {
-        val normalizedUrl = when {
-            url.startsWith("https://", ignoreCase = true) -> url
-            url.startsWith("www.", ignoreCase = true) -> "https://$url"
-            else -> throw IllegalArgumentException("Введите HTTPS-ссылку на файл")
+        val trimmedUrl = url.trim()
+        val normalizedUrl = if (trimmedUrl.startsWith("www.", ignoreCase = true)) {
+            "https://$trimmedUrl"
+        } else trimmedUrl
+        val parsedUrl = try {
+            URI(normalizedUrl)
+        } catch (e: java.net.URISyntaxException) {
+            throw IllegalArgumentException("Некорректная ссылка на PDF", e)
         }
-        val parsedUri = Uri.parse(normalizedUrl)
-        if (parsedUri.host.isNullOrBlank()) {
-            throw IllegalArgumentException("Некорректная ссылка")
+        if (!parsedUrl.scheme.equals("https", ignoreCase = true) ||
+            parsedUrl.host.isNullOrBlank() || parsedUrl.userInfo != null
+        ) {
+            throw IllegalArgumentException("Введите HTTPS-ссылку на PDF")
         }
-        val extension = when (parsedUri.lastPathSegment?.substringAfterLast('.', "")?.lowercase()) {
-            "doc" -> "doc"
-            "docx" -> "docx"
-            "txt" -> "txt"
-            else -> "pdf"
-        }
-        val mime = when (extension) {
-            "doc" -> "application/msword"
-            "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            "txt" -> "text/plain"
-            else -> "application/pdf"
-        }
-        val connection = URL(normalizedUrl).openConnection() as HttpURLConnection
-        connection.connectTimeout = 15000
-        connection.readTimeout = 20000
-        connection.instanceFollowRedirects = true
+
+        val manager = context.getSystemService(DownloadManager::class.java)
+            ?: throw IOException("Системный сервис загрузки недоступен")
+        val uri = Uri.parse(normalizedUrl).buildUpon().scheme("https").build()
+        val request = DownloadManager.Request(uri)
+            .setTitle("Резюме")
+            .setDestinationInExternalFilesDir(
+                context,
+                Environment.DIRECTORY_DOWNLOADS,
+                "resumes/resume_${UUID.randomUUID()}.pdf"
+            )
+        // Do not set MIME here: it would override the server's content type.
+        val downloadId = manager.enqueue(request)
+        var completed = false
         try {
-            if (connection.responseCode !in 200..299) {
-                throw IOException("Ошибка загрузки: HTTP ${connection.responseCode}")
-            }
-            if (connection.contentType?.startsWith("text/html", ignoreCase = true) == true) {
-                throw IOException("По ссылке открывается веб-страница, а не файл")
-            }
-            val resumeDir = File(context.cacheDir, "resume").apply { mkdirs() }
-            val target = File(resumeDir, "resume.$extension")
-            val temp = File(resumeDir, "resume.download")
-            try {
-                connection.inputStream.use { input ->
-                    temp.outputStream().use { output -> copyLimited(input, output, 20L * 1024 * 1024) }
-                }
-                temp.copyTo(target, overwrite = true)
-                DownloadedResume(
-                    contentUri = FileProvider.getUriForFile(context, authority, target).toString(),
-                    mimeType = mime
-                )
-            } finally {
-                temp.delete()
-            }
+            val document = withTimeoutOrNull(120_000L) {
+                awaitResumeDownload(manager, downloadId)
+            } ?: throw IOException("Загрузка заняла слишком много времени. Проверьте интернет и повторите попытку")
+            completed = true
+            document
         } finally {
-            connection.disconnect()
+            if (!completed) manager.remove(downloadId)
+        }
+    }
+
+    private suspend fun awaitResumeDownload(
+        manager: DownloadManager,
+        downloadId: Long
+    ): DownloadedResume {
+        val query = DownloadManager.Query().setFilterById(downloadId)
+        while (true) {
+            val cursor = manager.query(query) ?: throw IOException("Не удалось проверить загрузку")
+            cursor.use {
+                if (!it.moveToFirst()) throw IOException("Загрузка удалена или недоступна")
+                val status = it.getInt(it.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
+                val total = it.getLong(it.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES))
+                val downloaded = it.getLong(it.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR))
+                if (total > 20L * 1024 * 1024 || downloaded > 20L * 1024 * 1024) {
+                    throw IOException("PDF слишком большой: максимум 20 МБ")
+                }
+                when (status) {
+                    DownloadManager.STATUS_SUCCESSFUL -> {
+                        val mime = manager.getMimeTypeForDownloadedFile(downloadId)
+                            ?.substringBefore(';')?.trim()
+                        if (!mime.equals("application/pdf", ignoreCase = true)) {
+                            throw IOException("По ссылке получен не PDF-документ или сервер не указал тип PDF")
+                        }
+                        val uri = manager.getUriForDownloadedFile(downloadId)
+                            ?: throw IOException("Скачанный PDF недоступен")
+                        if (uri.scheme != "content") throw IOException("Не удалось открыть скачанный PDF")
+                        return DownloadedResume(uri.toString(), "application/pdf")
+                    }
+                    DownloadManager.STATUS_FAILED -> {
+                        val reason = it.getInt(it.getColumnIndexOrThrow(DownloadManager.COLUMN_REASON))
+                        throw IOException("Не удалось скачать PDF (код $reason). Проверьте ссылку и подключение")
+                    }
+                }
+            }
+            delay(1_000L)
         }
     }
 
