@@ -22,6 +22,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import ru.urfu.githubrepositories.domain.model.GitHubRepository
 import ru.urfu.githubrepositories.presentation.repositories.SavedRepositoriesUiState
+import org.koin.compose.viewmodel.koinActivityViewModel
+import ru.urfu.githubrepositories.viewmodel.SavedRepositoriesViewModel
+
+@Composable
+fun SavedRepositoriesRoute(
+    viewModel: SavedRepositoriesViewModel = koinActivityViewModel()
+) {
+    SavedRepositoriesScreen(state = viewModel.savedRepositoriesState)
+}
 
 @Composable
 fun SavedRepositoriesScreen(

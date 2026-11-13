@@ -15,12 +15,36 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import ru.urfu.githubrepositories.domain.model.GitHubRepository
 import ru.urfu.githubrepositories.presentation.repositories.RepositoryDetailsUiState
+import org.koin.compose.viewmodel.koinActivityViewModel
+import ru.urfu.githubrepositories.viewmodel.RepositoriesViewModel
+
+@Composable
+fun RepositoryDetailsRoute(
+    owner: String,
+    repo: String,
+    onBackClick: () -> Unit,
+    viewModel: RepositoriesViewModel = koinActivityViewModel()
+) {
+    LaunchedEffect(owner, repo) {
+        if (owner.isNotBlank() && repo.isNotBlank()) {
+            viewModel.loadRepositoryDetails(owner, repo)
+        }
+    }
+
+    RepositoryDetailsScreen(
+        state = viewModel.repositoryDetailsState,
+        onBackClick = onBackClick,
+        onRetryClick = { viewModel.loadRepositoryDetails(owner, repo) },
+        onFavoriteClick = viewModel::toggleFavorite
+    )
+}
 
 @Composable
 fun RepositoryDetailsScreen(

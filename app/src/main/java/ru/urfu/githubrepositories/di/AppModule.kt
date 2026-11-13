@@ -23,9 +23,29 @@ import ru.urfu.githubrepositories.domain.usecase.SearchRepositoriesUseCase
 import ru.urfu.githubrepositories.viewmodel.FiltersViewModel
 import ru.urfu.githubrepositories.viewmodel.RepositoriesViewModel
 import ru.urfu.githubrepositories.viewmodel.SavedRepositoriesViewModel
+import ru.urfu.githubrepositories.viewmodel.ProfileViewModel
+import ru.urfu.githubrepositories.domain.repository.UserProfileRepository
+import ru.urfu.githubrepositories.data.repository.UserProfileRepositoryImpl
+import ru.urfu.githubrepositories.domain.usecase.GetUserProfileUseCase
+import ru.urfu.githubrepositories.domain.usecase.StageProfileAvatarUseCase
+import ru.urfu.githubrepositories.domain.usecase.SaveUserProfileUseCase
+import ru.urfu.githubrepositories.domain.usecase.DownloadResumeUseCase
 
 val appModule = module {
     single { RetrofitClient.gitHubApi }
+    single<UserProfileRepository> { UserProfileRepositoryImpl(androidContext()) }
+    factory { GetUserProfileUseCase(get()) }
+    factory { StageProfileAvatarUseCase(get()) }
+    factory { SaveUserProfileUseCase(get()) }
+    factory { DownloadResumeUseCase(get()) }
+    viewModel {
+        ProfileViewModel(
+            getProfile = get(),
+            saveProfile = get(),
+            stageAvatar = get(),
+            downloadResume = get()
+        )
+    }
 
     single {
         Room.databaseBuilder(
