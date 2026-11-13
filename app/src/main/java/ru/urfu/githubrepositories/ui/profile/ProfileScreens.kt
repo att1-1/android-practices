@@ -165,7 +165,7 @@ fun ProfileEditScreen(
         OutlinedTextField(
             value = viewModel.draftResumeUrl,
             onValueChange = viewModel::onResumeUrlChange,
-            label = { Text("Ссылка на резюме (PDF, DOC, DOCX)") },
+            label = { Text("Ссылка на резюме (PDF)") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
@@ -224,7 +224,7 @@ private fun openDownloadedResume(context: Context, document: DownloadedResume) {
         setDataAndType(uri, document.mimeType)
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
-    context.startActivity(Intent.createChooser(intent, "Открыть резюме"))
+    context.startActivity(intent)
 }
 
 @Composable

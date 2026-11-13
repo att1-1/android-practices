@@ -3,5 +3,4 @@
     <files-path name="profile_images" path="profile/" />
     <cache-path name="draft_images" path="profile/" />
     <cache-path name="camera_images" path="camera/" />
-    <cache-path name="downloaded_resumes" path="resume/" />
 </paths>
