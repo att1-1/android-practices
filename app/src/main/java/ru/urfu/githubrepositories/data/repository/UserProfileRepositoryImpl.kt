@@ -10,26 +10,24 @@ import java.net.URL
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
+import kotlinx.coroutines.flow.first
+import ru.urfu.githubrepositories.data.local.profile.userProfileDataStore
 import ru.urfu.githubrepositories.domain.model.DownloadedResume
 import ru.urfu.githubrepositories.domain.model.UserProfile
 import ru.urfu.githubrepositories.domain.repository.UserProfileRepository
 
-/** Keeps profile.json and avatar.img in app-private filesDir. No broad storage access. */
 class UserProfileRepositoryImpl(private val context: Context) : UserProfileRepository {
     private val authority = "${context.packageName}.fileprovider"
     private val profileDirectory get() = File(context.filesDir, "profile").apply { mkdirs() }
     private val draftDirectory get() = File(context.cacheDir, "profile").apply { mkdirs() }
 
     override suspend fun loadProfile(): UserProfile = withContext(Dispatchers.IO) {
-        val file = File(profileDirectory, "profile.json")
-        if (!file.exists()) return@withContext UserProfile()
-        val json = JSONObject(file.readText(Charsets.UTF_8))
+        val stored = context.userProfileDataStore.data.first()
         UserProfile(
-            fullName = json.optString("fullName"),
-            position = json.optString("position"),
-            resumeUrl = json.optString("resumeUrl"),
-            avatarUri = json.optString("avatarUri").takeIf { it.isNotBlank() }
+            fullName = stored.fullName,
+            position = stored.position,
+            resumeUrl = stored.resumeUrl,
+            avatarUri = stored.avatarUri.takeIf { it.isNotBlank() }
         )
     }
 
@@ -59,7 +57,6 @@ class UserProfileRepositoryImpl(private val context: Context) : UserProfileRepos
                     tempFile.outputStream().use { output -> copyLimited(input, output, 12L * 1024 * 1024) }
                 } ?: throw IOException("Не удалось сохранить фотографию")
                 if (!tempFile.renameTo(newFile)) {
-                    // Some filesystems do not replace existing files via renameTo.
                     tempFile.copyTo(newFile, overwrite = true)
                     tempFile.delete()
                 }
@@ -70,18 +67,13 @@ class UserProfileRepositoryImpl(private val context: Context) : UserProfileRepos
         } else profile.avatarUri
 
         val saved = profile.copy(avatarUri = newAvatarUri)
-        val json = JSONObject().apply {
-            put("fullName", saved.fullName)
-            put("position", saved.position)
-            put("resumeUrl", saved.resumeUrl)
-            put("avatarUri", saved.avatarUri ?: "")
-        }
-        val tempJson = File(profileDirectory, "profile.tmp")
-        val targetJson = File(profileDirectory, "profile.json")
-        tempJson.writeText(json.toString(2), Charsets.UTF_8)
-        if (!tempJson.renameTo(targetJson)) {
-            tempJson.copyTo(targetJson, overwrite = true)
-            tempJson.delete()
+        context.userProfileDataStore.updateData { current ->
+            current.toBuilder()
+                .setFullName(saved.fullName)
+                .setPosition(saved.position)
+                .setResumeUrl(saved.resumeUrl)
+                .setAvatarUri(saved.avatarUri.orEmpty())
+                .build()
         }
         saved
     }
