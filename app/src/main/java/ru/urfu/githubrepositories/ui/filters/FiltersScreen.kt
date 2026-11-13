@@ -14,6 +14,26 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import org.koin.compose.viewmodel.koinActivityViewModel
+import ru.urfu.githubrepositories.viewmodel.FiltersViewModel
+
+@Composable
+fun FiltersRoute(
+    onSaved: () -> Unit,
+    onBackClick: () -> Unit,
+    viewModel: FiltersViewModel = koinActivityViewModel()
+) {
+    FiltersScreen(
+        queryText = viewModel.queryText,
+        language = viewModel.language,
+        minStars = viewModel.minStars,
+        onQueryTextChange = viewModel::onQueryTextChange,
+        onLanguageChange = viewModel::onLanguageChange,
+        onMinStarsChange = viewModel::onMinStarsChange,
+        onDoneClick = { viewModel.saveFilters(onSaved) },
+        onBackClick = onBackClick
+    )
+}
 
 @Composable
 fun FiltersScreen(

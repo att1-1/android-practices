@@ -31,7 +31,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -47,7 +46,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -57,10 +55,14 @@ import androidx.compose.ui.text.input.KeyboardType
 import java.io.File
 import androidx.compose.runtime.LaunchedEffect
 import ru.urfu.githubrepositories.domain.model.DownloadedResume
+import org.koin.compose.viewmodel.koinActivityViewModel
 import ru.urfu.githubrepositories.viewmodel.ProfileViewModel
 
 @Composable
-fun ProfileScreen(viewModel: ProfileViewModel, onEdit: () -> Unit) {
+fun ProfileScreen(
+    onEdit: () -> Unit,
+    viewModel: ProfileViewModel = koinActivityViewModel()
+) {
     val context = LocalContext.current
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -92,7 +94,6 @@ fun ProfileScreen(viewModel: ProfileViewModel, onEdit: () -> Unit) {
                     viewModel.openResume { document ->
                         try { openDownloadedResume(context, document) }
                         catch (e: ActivityNotFoundException) {
-                            // Document is downloaded; user may install a PDF/DOC viewer.
                             android.widget.Toast.makeText(
                                 context, "Нет приложения для просмотра этого документа", android.widget.Toast.LENGTH_LONG
                             ).show()
@@ -111,7 +112,11 @@ fun ProfileScreen(viewModel: ProfileViewModel, onEdit: () -> Unit) {
 }
 
 @Composable
-fun ProfileEditScreen(viewModel: ProfileViewModel, onBack: () -> Unit, onSaved: () -> Unit) {
+fun ProfileEditScreen(
+    onBack: () -> Unit,
+    onSaved: () -> Unit,
+    viewModel: ProfileViewModel = koinActivityViewModel()
+) {
     val context = LocalContext.current
     var chooseSource by remember { mutableStateOf(false) }
     var cameraUri by remember { mutableStateOf<Uri?>(null) }
@@ -123,10 +128,6 @@ fun ProfileEditScreen(viewModel: ProfileViewModel, onBack: () -> Unit, onSaved: 
     ) { success ->
         if (success) cameraUri?.let(viewModel::onImageSelected)
     }
-    // System Photo Picker grants access to selected image only, and TakePicture
-    // delegates photography to an external camera app. Neither requires us to
-    // request broad storage access or CAMERA permission. App-private file writes
-    // also need no storage permission (Android 7+; minSdk = 24).
     LaunchedEffect(Unit) { viewModel.beginEdit() }
 
     Column(
