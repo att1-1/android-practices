@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+option java_package = "ru.urfu.githubrepositories.data.local.profile";
+option java_multiple_files = true;
+
+message UserProfileProto {
+  string full_name = 1;
+  string position = 2;
+  string resume_url = 3;
+  string avatar_uri = 4;
+}
