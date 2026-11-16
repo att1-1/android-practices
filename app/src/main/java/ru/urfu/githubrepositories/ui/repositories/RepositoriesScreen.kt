@@ -24,6 +24,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import ru.urfu.githubrepositories.domain.model.GitHubRepository
 import ru.urfu.githubrepositories.presentation.repositories.RepositoriesUiState
+import org.koin.compose.viewmodel.koinActivityViewModel
+import ru.urfu.githubrepositories.viewmodel.RepositoriesViewModel
+
+@Composable
+fun RepositoriesRoute(
+    onRepositoryClick: (GitHubRepository) -> Unit,
+    onFiltersClick: () -> Unit,
+    viewModel: RepositoriesViewModel = koinActivityViewModel()
+) {
+    RepositoriesScreen(
+        state = viewModel.repositoriesState,
+        hasActiveFilters = viewModel.hasActiveFilters,
+        onRepositoryClick = onRepositoryClick,
+        onRetryClick = { viewModel.loadRepositories() },
+        onFiltersClick = onFiltersClick
+    )
+}
 
 @Composable
 fun RepositoriesScreen(
